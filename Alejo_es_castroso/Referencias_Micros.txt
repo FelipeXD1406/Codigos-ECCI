@@ -1,0 +1,6 @@
+Deitel, H., & Deitel, P. (2003). Como programar en C++. Ciudad de México: Prentice-Hall.
+Ibrahim, D. (2006). Microcontroller based applied digital control. Inglaterra: John Wiley & Sons Ltd.
+Ibrahim, D. (2006). PICBASIC PROJECTS 30 projects using picbasic and picbasic pro. USA: ELSEVIER.
+Ibrahim, D. (2008). Advanced PIC microcontroller projects in C. USA: ELSEVIER.
+Ibrahim, D. (2010). SD card projects using the PIC microcontroller. USA: ELSEVIER.
+Jimenez, R. (2010). Programación de microcontrola
