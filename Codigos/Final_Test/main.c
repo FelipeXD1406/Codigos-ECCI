@@ -59,7 +59,69 @@ int n = 0;
 
 void main(void) {
     while (1) {
-
+        if (modo == 0) {
+            freno();
+        } else if (modo == 1) {
+            adelante();
+            if (PWM == 1) {
+                pwmA1();
+                PWM = 0;
+            } else if (PWM == 2) {
+                pwmA2();
+                PWM = 0;
+            } else if (PWM == 3) {
+                pwmB1();
+                PWM = 0;
+            } else if (PWM == 4) {
+                pwmB2();
+                PWM = 0;
+            }
+        } else if (modo == 2) {
+            atras();
+            if (PWM == 1) {
+                pwmA1();
+                PWM = 0;
+            } else if (PWM == 2) {
+                pwmA2();
+                PWM = 0;
+            } else if (PWM == 3) {
+                pwmB1();
+                PWM = 0;
+            } else if (PWM == 4) {
+                pwmB2();
+                PWM = 0;
+            }
+        } else if (modo == 3) {
+            derecha();
+            if (PWM == 1) {
+                pwmA1();
+                PWM = 0;
+            } else if (PWM == 2) {
+                pwmA2();
+                PWM = 0;
+            } else if (PWM == 3) {
+                pwmB1();
+                PWM = 0;
+            } else if (PWM == 4) {
+                pwmB2();
+                PWM = 0;
+            }
+        } else if (modo == 4) {
+            izquierda();
+            if (PWM == 1) {
+                pwmA1();
+                PWM = 0;
+            } else if (PWM == 2) {
+                pwmA2();
+                PWM = 0;
+            } else if (PWM == 3) {
+                pwmB1();
+                PWM = 0;
+            } else if (PWM == 4) {
+                pwmB2();
+                PWM = 0;
+            }
+        }
     }
 }
 
