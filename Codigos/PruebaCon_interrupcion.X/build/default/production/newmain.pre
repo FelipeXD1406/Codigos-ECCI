@@ -4908,12 +4908,14 @@ ADCON0 = 0x01;
 ADCON1 = 0x0C;
 ADCON2 = 0x91;
 
-TRISB = 0xF0;
-LATB = 0xF0;
+TRISB = 0xFF;
+LATB = 0xFF;
 TRISA = 0x0F;
 LATA = 0x0F;
 TRISE = 0;
 LATE = 0;
+TRISD = 0;
+LATD = 0;
 
 
 PR2 = 0x7C;
@@ -5090,8 +5092,8 @@ freno();
 }
 
 void manual(void) {
-if (PORTBbits.RB4 == 1) {
-LATAbits.LA4 = 0;
+
+
 if (modo == 0) {
 freno();
 } else if (modo == 1) {
@@ -5155,10 +5157,10 @@ pwmB2();
 PWM = 0;
 }
 }
-} else {
-sensorOFF();
-LATAbits.LA4 = 1;
-}
+
+
+
+
 }
 
 void pwm(void) {
@@ -5241,47 +5243,47 @@ duty_cicle2 = 0;
 void adelante(void) {
 _delay((unsigned long)((100)*(8000000/4000.0)));
 pwm();
-LATB0 = 1;
-LATB1 = 0;
-LATB2 = 1;
-LATB3 = 0;
+LATD0 = 1;
+LATD1 = 0;
+LATD2 = 1;
+LATD3 = 0;
 }
 
 void atras(void) {
 _delay((unsigned long)((100)*(8000000/4000.0)));
 pwm();
-LATB0 = 0;
-LATB1 = 1;
-LATB2 = 0;
-LATB3 = 1;
+LATD0 = 0;
+LATD1 = 1;
+LATD2 = 0;
+LATD3 = 1;
 }
 
 void derecha(void) {
 pwmD();
-LATB0 = 1;
-LATB1 = 0;
-LATB2 = 1;
-LATB3 = 0;
+LATD0 = 1;
+LATD1 = 0;
+LATD2 = 1;
+LATD3 = 0;
 }
 
 void izquierda(void) {
 pwmI();
-LATB0 = 1;
-LATB1 = 0;
-LATB2 = 1;
-LATB3 = 0;
+LATD0 = 1;
+LATD1 = 0;
+LATD2 = 1;
+LATD3 = 0;
 }
 
 void freno(void) {
-LATB0 = 0;
-LATB1 = 0;
-LATB2 = 0;
-LATB3 = 0;
+LATD0 = 0;
+LATD1 = 0;
+LATD2 = 0;
+LATD3 = 0;
 }
 
 void sensorOFF(void) {
-LATB0 = 0;
-LATB1 = 0;
-LATB2 = 0;
-LATB3 = 0;
+LATD0 = 0;
+LATD1 = 0;
+LATD2 = 0;
+LATD3 = 0;
 }

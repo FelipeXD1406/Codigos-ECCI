@@ -18,10 +18,10 @@
 #define time 10//tiempo
 
 //constantes (MOTOR)
-#define in1 LATB0
-#define in2 LATB1
-#define in3 LATB2
-#define in4 LATB3  
+#define in1 LATD0
+#define in2 LATD1
+#define in3 LATD2
+#define in4 LATD3  
 
 void settings(void); //funcion configuraciones principales
 
@@ -92,12 +92,14 @@ void settings(void) {//funcion configuraciones
     ADCON1 = 0x0C; // Definir que canales son Digitales-analogos voltajes ref
     ADCON2 = 0x91; // 7 Config derecha, 5-3 son (010) 4 tiempos de adq , 2-0 (001)= Frec osc int/8 =1MHz
 
-    TRISB = 0xF0; //Define (0b11110000)
-    LATB = 0xF0; //(0b11110000)
+    TRISB = 0xFF; //Define (0b11110000)
+    LATB = 0xFF; //(0b11110000)
     TRISA = 0x0F;
     LATA = 0x0F;
     TRISE = 0;
     LATE = 0;
+    TRISD = 0;
+    LATD = 0;
 
     //PWM
     PR2 = 0x7C; //registro TMR2 de 8 bits a 1ms
@@ -274,75 +276,75 @@ void automatico(void) {
 }
 
 void manual(void) {
-    if (PORTBbits.RB4 == 1) {
-        LATAbits.LA4 = 0;
-        if (modo == 0) {
-            freno();
-        } else if (modo == 1) {
-            adelante();
-            if (PWM == 1) {
-                pwmA1();
-                PWM = 0;
-            } else if (PWM == 2) {
-                pwmA2();
-                PWM = 0;
-            } else if (PWM == 3) {
-                pwmB1();
-                PWM = 0;
-            } else if (PWM == 4) {
-                pwmB2();
-                PWM = 0;
-            }
-        } else if (modo == 2) {
-            atras();
-            if (PWM == 1) {
-                pwmA1();
-                PWM = 0;
-            } else if (PWM == 2) {
-                pwmA2();
-                PWM = 0;
-            } else if (PWM == 3) {
-                pwmB1();
-                PWM = 0;
-            } else if (PWM == 4) {
-                pwmB2();
-                PWM = 0;
-            }
-        } else if (modo == 3) {
-            derecha();
-            if (PWM == 1) {
-                pwmA1();
-                PWM = 0;
-            } else if (PWM == 2) {
-                pwmA2();
-                PWM = 0;
-            } else if (PWM == 3) {
-                pwmB1();
-                PWM = 0;
-            } else if (PWM == 4) {
-                pwmB2();
-                PWM = 0;
-            }
-        } else if (modo == 4) {
-            izquierda();
-            if (PWM == 1) {
-                pwmA1();
-                PWM = 0;
-            } else if (PWM == 2) {
-                pwmA2();
-                PWM = 0;
-            } else if (PWM == 3) {
-                pwmB1();
-                PWM = 0;
-            } else if (PWM == 4) {
-                pwmB2();
-                PWM = 0;
-            }
+    //    if (PORTBbits.RB4 == 1) {
+    //        LATAbits.LA4 = 0;
+    if (modo == 0) {
+        freno();
+    } else if (modo == 1) {
+        adelante();
+        if (PWM == 1) {
+            pwmA1();
+            PWM = 0;
+        } else if (PWM == 2) {
+            pwmA2();
+            PWM = 0;
+        } else if (PWM == 3) {
+            pwmB1();
+            PWM = 0;
+        } else if (PWM == 4) {
+            pwmB2();
+            PWM = 0;
         }
-    } else {
-        sensorOFF();
-        LATAbits.LA4 = 1;
+    } else if (modo == 2) {
+        atras();
+        if (PWM == 1) {
+            pwmA1();
+            PWM = 0;
+        } else if (PWM == 2) {
+            pwmA2();
+            PWM = 0;
+        } else if (PWM == 3) {
+            pwmB1();
+            PWM = 0;
+        } else if (PWM == 4) {
+            pwmB2();
+            PWM = 0;
+        }
+    } else if (modo == 3) {
+        derecha();
+        if (PWM == 1) {
+            pwmA1();
+            PWM = 0;
+        } else if (PWM == 2) {
+            pwmA2();
+            PWM = 0;
+        } else if (PWM == 3) {
+            pwmB1();
+            PWM = 0;
+        } else if (PWM == 4) {
+            pwmB2();
+            PWM = 0;
+        }
+    } else if (modo == 4) {
+        izquierda();
+        if (PWM == 1) {
+            pwmA1();
+            PWM = 0;
+        } else if (PWM == 2) {
+            pwmA2();
+            PWM = 0;
+        } else if (PWM == 3) {
+            pwmB1();
+            PWM = 0;
+        } else if (PWM == 4) {
+            pwmB2();
+            PWM = 0;
+        }
     }
+    //    } else {
+    //        sensorOFF();
+    //        LATAbits.LA4 = 1;
+    //    }
 }
 
 void pwm(void) {
