@@ -1,0 +1,452 @@
+#include <xc.h>
+#include <stdio.h>
+#include <string.h>
+
+#pragma config FOSC = INTIO67
+#pragma config WDTEN = OFF
+#pragma config LVP = OFF
+#pragma config CCP2MX = PORTB3
+#pragma config CCP3MX = PORTE0
+
+#define _XTAL_FREQ 4000000
+#define time 100
+//LCD
+#define CD 0x01 //Clear Display
+#define RH 0x02 //(0x03) Return Home
+#define EMS 0x06 //Entry Mode Set
+#define DC 0x0F //(0x0E) Display Control
+#define DSr 0x1C //Display Shift Rigth
+#define DSl 0x18 //Display Shift Left
+#define FS 0x28 //(0x3C) Function Set
+#define RAW1 0x80 //DDRAM display
+#define RAW2 0xC0 //DDRAM display
+#define RAW3 0x94 
+#define RAW4 0xD4 
+#define RS LATD7 //Register Selection
+#define E LATD6 //Enable
+//TIMER
+#define Prescale1_4 0x32
+#define Prescale1_3 0x22
+#define Prescale1_2 0x12
+#define Prescale1_1 0x02
+
+void settings(void);
+void Move(void);
+void Sensors(void);
+void PWM(void);
+void PWM1(void);
+void PWM2(void);
+//LCD
+void SettingsLCD(unsigned char word);
+void WriteLCD(unsigned char word);
+void LCD(unsigned char data);
+void Data1LCD(void);
+void Data2LCD(unsigned char pwm);
+//Interrupción
+void __interrupt() RECEIVE(void);
+
+unsigned int t1, t3;
+int i, digital, digital1, digital2, binario, cont = 0;
+float conversion, conversion1, conversion2, conversion3, conversion4, DutyCycle, DutyCycle1, DutyCycle2, voltaje, distancia1, distancia2, delay, fI, wI, t2, t4, fD, wD;
+char text[10] = {"MI:"}, text2[10] = {"MD:"}, text3[20], text4[20], buffer[15];
+unsigned char flag = 0, flag1 = 0, flag2 = 0, canal = 0, m, n;
+
+void main(void) {
+    settings();
+    while (1) {
+        Move();
+        Sensors();
+        Data2LCD(2);
+        TMR0 = 0;
+        __delay_ms(1000);
+        cont = TMR0;
+    }
+}
+
+void SettingsLCD(unsigned char word) {
+    RS = 0;
+    LCD(word >> 4); // 4 MSB
+    LCD(word & 0x0F); // 4 LSB
+}
+
+void WriteLCD(unsigned char word) {
+    RS = 1;
+    LCD(word >> 4);
+    LCD(word & 0x0F);
+}
+
+void LCD(unsigned char data) { //Opción bits
+    E = 1;
+    __delay_us(time);
+    LATDbits.LATD0 = (data & 0x01);
+    __delay_us(time);
+    LATDbits.LATD1 = (data & 0x02) >> 1;
+    __delay_us(time);
+    LATDbits.LATD2 = (data & 0x04) >> 2;
+    __delay_us(time);
+    LATDbits.LATD3 = (data & 0x08) >> 3;
+    __delay_us(time);
+    E = 0;
+    __delay_us(time);
+}
+
+void settings(void) {
+    OSCCON = 0x52;
+    ANSELA = 0x03;
+    ANSELB = 0x00;
+    ANSELC = 0x00;
+    ANSELD = 0x00;
+    ANSELE = 0x00;
+    TRISA = 0b00000011;
+    TRISB = 0xF3;
+    TRISCbits.TRISC2 = 1;
+    TRISD = 0;
+    TRISE = 0x04;
+    LATA = 0;
+    LATB = 0x00;
+    LATD = 0;
+    LATE = 0;
+    //ADC
+    ADCON0 = 0x01;
+    ADCON1 = 0x00;
+    ADCON2 = 0x94;
+    //PWM f=1kHz
+    PR2 = 0x3E;
+    CCPR2L = 0x2E; //25% Duty Cycle
+    CCPR3L = 0x00; //10% Duty Cycle
+    T2CON = 0x02;
+    TMR2 = 0;
+    CCP2CON = 0x3C; //25% Duty Cycle
+    CCP3CON = 0x0C; //10% Duty Cycle 
+    //LCD
+    SettingsLCD(0x02); //Iniciar la LCD con el método nibble (4 MSB y 4 LSB)
+    SettingsLCD(EMS);
+    SettingsLCD(DC);
+    SettingsLCD(FS);
+    SettingsLCD(CD);
+    Data1LCD();
+    //Serial UART
+    TRISCbits.TRISC6 = 0;
+    TRISCbits.TRISC7 = 1;
+    SPBRG1 = 25;
+    RCSTA1 = 0x90;
+    TXSTA1 = 0x24;
+    //Interrupción
+    GIE = 1;
+    PEIE = 1;
+    RC1IE = 1;
+    RC1IF = 0;
+    CCP1IE = 1;
+    CCP1IF = 0;
+    CCP5IE = 1;
+    CCP5IF = 0;
+        INT1IE = 1;
+        INT1IF = 0;
+        INTEDG1 = 0;
+        INT0IE = 1;
+        INT0IF = 0;
+        INTEDG0 = 1;
+        //Configuração do TIMER1
+        T1CON = Prescale1_1;
+        TMR1 = 0;
+    //Configuração do TIMER0
+    T0CON = 0xA8;
+    //Configuração do CCP1
+    CCP1CON = 0x05;
+    CCPR1 = 0x00;
+    CCP5CON = 0x05;
+    CCPR5 = 0x00;
+    //Configuração do TMR1
+    T1CON = 0x32;
+    TMR1 = 0;
+    T5CON = 0x32;
+    TMR5 = 0;
+    TMR1ON = 1;
+    TMR5ON = 1;
+    //TMR2
+    TMR2ON = 1;
+}
+
+void __interrupt() RECEIVE(void) {
+    unsigned char d;
+    if (RC1IF == 1) {
+        d = RCREG1;
+        if (d == '0') {
+            m = 0;
+        } else if (d == '1') {//Movimiento adelante
+            m = 1;
+        } else if (d == '2') {//Movimiento atrás
+            m = 2;
+        } else if (d == '3') {//Movimiento izquierda
+            m = 3;
+        } else if (d == '4') {//Movimiento derecha
+            m = 4;
+        } else if (d == '5') { //Aumenta PWM1
+            n = 1;
+        } else if (d == '6') { //Disminuye PWM1
+            n = 2;
+        } else if (d == '7') { //Aumenta PWM2
+            n = 3;
+        } else if (d == '8') { //Disminuye PWM2
+            n = 4;
+        }
+    }
+    if (CCP1IF == 1) {
+        t1 = TMR1;
+        t2 = (float)t1 * 8.0;
+        CCPR1 = 0;
+        TMR1 = 0;
+        CCP1IF = 0;
+    }
+    if (CCP5IF == 1) {
+        t3 = TMR5;
+        t4 = (float) t3 * 8.0;
+        CCPR5 = 0;
+        TMR5 = 0;
+        CCP5IF = 0;
+    }
+//        if(INT0IF == 1){
+//            TMR1 = 0;
+//            TMR1ON = 1;
+//            INT0IF = 0;
+//        }
+//        if(INT1IF == 1){
+//            t = TMR1;      
+//            TMR1ON = 0;
+//            INT1IF = 0;
+//        }
+}
+
+void Move(void) {
+    if (distancia1 > 5.09 && distancia2 > 4.09) {
+        if (m == 0) {//Quietos
+            //Motor 1 quieto
+            LATAbits.LATA4 = 0;
+            LATAbits.LATA5 = 0;
+            //Motor 2 quieto
+            LATAbits.LATA6 = 0;
+            LATAbits.LATA7 = 0;
+        } else if (m == 1) {//Adelante plataforma
+            PWM();
+            //Motor 1 a la izquierda
+            LATAbits.LATA4 = 1;
+            LATAbits.LATA5 = 0;
+            //Motor 2 a la derecha
+            LATAbits.LATA6 = 0;
+            LATAbits.LATA7 = 1;
+        } else if (m == 2) {//Atrás plataforma
+            PWM();
+            //Motor 1 a la derecha
+            LATAbits.LATA4 = 0;
+            LATAbits.LATA5 = 1;
+            //Motor 2 a la izquierda
+            LATAbits.LATA6 = 1;
+            LATAbits.LATA7 = 0;
+        } else if (m == 3) {//Giro izquierda plataforma
+            PWM1();
+            //Motor 1 a la izquierda
+            LATAbits.LATA4 = 1;
+            LATAbits.LATA5 = 0;
+            //Motor 2 a la izquierda
+            LATAbits.LATA6 = 0;
+            LATAbits.LATA7 = 1;
+        } else if (m == 4) {//Giro derecha plataforma
+            PWM2();
+            //Motor 1 a la derecha
+            LATAbits.LATA4 = 1;
+            LATAbits.LATA5 = 0;
+            //Motor 2 a la derecha
+            LATAbits.LATA6 = 0;
+            LATAbits.LATA7 = 1;
+        }
+        if (n == 1) {//+PWM1
+            n = 0;
+            if (m == 1 || m == 2) { //Adelante y atrás plataforma
+                digital += 100;
+                if (digital > 1023) {
+                    digital = 1023;
+                }
+            } else if (m == 3) {//Giro izquierda plataforma
+                digital1 += 100;
+                if (digital1 >= digital2) {
+                    digital1 -= 100;
+                }
+            } else if (m == 4) {//Giro derecha plataforma
+                digital1 += 100;
+                if (digital1 > 1023) {
+                    digital1 = 1023;
+                }
+            }
+        } else if (n == 2) { //-PWM1
+            n = 0;
+            if (m == 1 || m == 2) {//Adelante y atrás plataforma
+                digital -= 100;
+                if (digital < 0) {
+                    digital = 0;
+                }
+            } else if (m == 3) {//Giro izquierda plataforma
+                digital1 -= 100;
+                if (digital1 < 0) {
+                    digital1 = 0;
+                }
+            } else if (m == 4) {//Giro derecha plataforma
+                digital1 -= 100;
+                if (digital1 <= digital2) {
+                    digital1 += 100;
+                }
+            }
+        } else if (n == 3) {//+PWM2
+            n = 0;
+            if (m == 1 || m == 2) {//Adelante y atrás plataforma
+                digital += 100;
+                if (digital > 1023) {
+                    digital = 1023;
+                }
+            } else if (m == 3) {//Giro izquierda plataforma
+                digital2 += 100;
+                if (digital2 > 1023) {
+                    digital2 = 1023;
+                }
+            } else if (m == 4) {//Giro derecha plataforma
+                digital2 += 100;
+                if (digital2 >= digital1) {
+                    digital2 -= 100;
+                }
+            }
+        } else if (n == 4) {//IOC3 //-PWM2
+            n = 0;
+            if (m == 1 || m == 2) {//Adelante y atrás plataforma
+                digital -= 100;
+                if (digital < 0) {
+                    digital = 0;
+                }
+            } else if (m == 3) {//Giro izquierda plataforma
+                digital2 -= 100;
+                if (digital2 <= digital1) {
+                    digital2 += 100;
+                }
+            } else if (m == 4) {//Giro derecha plataforma
+                digital2 -= 100;
+                if (digital2 < 0) {
+                    digital2 = 0;
+                }
+            }
+        }
+    } else if (distancia1 <= 5.09 || distancia2 <= 4.09) {
+        //Motor 1 quieto
+        LATAbits.LATA4 = 0;
+        LATAbits.LATA5 = 0;
+        //Motor 2 quieto
+        LATAbits.LATA6 = 0;
+        LATAbits.LATA7 = 0;
+    }
+}
+
+void Sensors(void) {
+    ADCON0bits.GO_nDONE = 1;
+    while (GO == 1);
+    binario = ADRESH << 8 | ADRESL;
+    voltaje = ((float) binario)*(5.0 / 1023.0);
+    if (canal == 0) {
+        distancia1 = (0.2895 * voltaje * voltaje)+(0.5776 * voltaje) - 0.1106;
+        sprintf(text3, "CNY70 F: %.3f mm", distancia1);
+        SettingsLCD(RAW3);
+        for (i = 0; i <= strlen(text3); i++) {
+            WriteLCD(text3[i]);
+        }
+        ADCON0 = 0x05; //CANAL 1
+        __delay_ms(time);
+        canal = 1;
+    } else if (canal == 1) {
+        distancia2 = (0.2895 * voltaje * voltaje)+(0.5776 * voltaje) - 0.1106;
+        sprintf(text4, "CNY70 B: %.3f mm", distancia2);
+        SettingsLCD(RAW4);
+        for (i = 0; i <= strlen(text4); i++) {
+            WriteLCD(text4[i]);
+        }
+        ADCON0 = 0x01; //CANAL 0
+        __delay_ms(time);
+        canal = 0;
+    }
+}
+
+void PWM(void) {
+    if (flag == 0) {
+        digital = 511; //50% ciclo útil
+        flag = 1;
+    }
+    conversion = ((float) digital * (250.0 / 1023.0));
+    DutyCycle = conversion * (100.0 / 250.0);
+    CCPR2L = ((int) conversion >> 2);
+    CCP2CON = (CCP2CON & 0x0F) | (((int) conversion & 0x03) << 4);
+    Data2LCD(2);
+    CCPR3L = ((int) conversion >> 2);
+    CCP3CON = (CCP3CON & 0x0F) | (((int) conversion & 0x03) << 4);
+    Data2LCD(3);
+}
+
+void PWM1(void) {//PWM motor (izquierda de la plataforma)
+    if (flag1 == 0) {
+        digital1 = 256; //25% ciclo útil (motor 1)
+        digital2 = 767; //75% ciclo útil (motor 2)
+        flag1 = 1;
+    }
+    flag2 = 0;
+    conversion1 = ((float) digital1 * (250.0 / 1023.0));
+    DutyCycle = conversion1 * (100.0 / 250.0);
+    CCPR2L = ((int) conversion1 >> 2);
+    CCP2CON = (CCP2CON & 0x0F) | (((int) conversion1 & 0x03) << 4);
+    Data2LCD(2);
+    conversion2 = ((float) digital2 * (250.0 / 1023.0));
+    DutyCycle = conversion2 * (100.0 / 250.0);
+    CCPR3L = ((int) conversion2 >> 2);
+    CCP3CON = (CCP3CON & 0x0F) | (((int) conversion2 & 0x03) << 4);
+    Data2LCD(3);
+}
+
+void PWM2(void) {//PWM motor (derecha de la plataforma)
+    if (flag2 == 0) {
+        digital2 = 256; //25% ciclo útil (motor 2)
+        digital1 = 767; //75% ciclo útil (motor 1)
+        flag2 = 1;
+    }
+    flag1 = 0;
+    conversion3 = ((float) digital1 * (250.0 / 1023.0));
+    DutyCycle = conversion3 * (100.0 / 250.0);
+    CCPR2L = ((int) conversion3 >> 2);
+    CCP2CON = (CCP2CON & 0x0F) | (((int) conversion3 & 0x03) << 4);
+    Data2LCD(2);
+    conversion4 = ((float) digital2 * (250.0 / 1023.0));
+    DutyCycle = conversion4 * (100.0 / 250.0);
+    CCPR3L = ((int) conversion4 >> 2);
+    CCP3CON = (CCP3CON & 0x0F) | (((int) conversion4 & 0x03) << 4);
+    Data2LCD(3);
+}
+
+void Data1LCD(void) {
+    SettingsLCD(RAW1);
+    for (i = 0; i <= strlen(text); i++) {
+        WriteLCD(text[i]);
+    }
+    SettingsLCD(RAW2);
+    for (i = 0; i <= strlen(text2); i++) {
+        WriteLCD(text2[i]);
+    }
+}
+
+void Data2LCD(unsigned char pwm) {
+    if (pwm == 2) {
+        SettingsLCD(RAW1 + 4);
+        fI = (1.0 / (t2 * 0.000001));
+        wI = (fI * 60.0) / 20.0;
+        sprintf(buffer, "%.2f%% %d RPM", DutyCycle, (int)wI);
+    } else if (pwm == 3) {
+        SettingsLCD(RAW2 + 4);
+        fD = (1.0 / (t4 * 0.000001));
+        wD = (fD * 60.0) / 20.0;
+        sprintf(buffer, "%.2f%% %d RPM", DutyCycle, (int)wD);
+    }
+    for (i = 0; i <= strlen(buffer); i++) {
+        WriteLCD(buffer[i]);
+    }
+}
